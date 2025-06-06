@@ -3,9 +3,15 @@ import sys
 from typing import List, Optional
 
 import pandas as pd
-import yfinance as yf
-from pypfopt import EfficientFrontier, expected_returns, risk_models, DiscreteAllocation
+from pypfopt import DiscreteAllocation, EfficientFrontier
 import matplotlib.pyplot as plt
+
+from services.io import (
+    load_tickers,
+    filter_tickers,
+    fetch_price_data,
+)
+from core.optimizer import optimize_portfolio
 
 
 def parse_args() -> argparse.Namespace:
@@ -19,35 +25,6 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_tickers(csv_path: str) -> pd.DataFrame:
-    return pd.read_csv(csv_path)
-
-
-def filter_tickers(df: pd.DataFrame, sectors: Optional[List[str]], esg: bool) -> pd.DataFrame:
-    if sectors:
-        df = df[df["Sector"].isin(sectors)]
-    if esg:
-        df = df[df["ESGScore"] >= 70]
-    return df
-
-
-def fetch_price_data(tickers: List[str]) -> pd.DataFrame:
-    data = yf.download(tickers, period="1y", interval="1d", progress=False)["Adj Close"]
-    return data.dropna(axis=1, how="any")
-
-
-def optimize_portfolio(prices: pd.DataFrame, risk: str) -> EfficientFrontier:
-    mu = expected_returns.mean_historical_return(prices)
-    S = risk_models.sample_cov(prices)
-    ef = EfficientFrontier(mu, S)
-    if risk == "High":
-        ef.max_sharpe()
-    elif risk == "Medium":
-        target_volatility = 0.2
-        ef.efficient_risk(target_volatility)
-    else:
-        ef.min_volatility()
-    return ef
 
 
 def allocate_discrete(ef: EfficientFrontier, prices: pd.DataFrame, amount: float):
