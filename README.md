@@ -29,3 +29,14 @@ The program downloads historical prices for a small universe of stocks
 `tickers.csv` includes example tickers with sector information and mocked ESG scores.
 Real deployments should replace this with up‑to‑date data.
 
+## Streamlit Web App
+
+A simple web interface is provided via Streamlit. Launch it with:
+
+```bash
+streamlit run streamlit_app.py
+```
+
+The app lets you pick sectors, set risk preferences and visualize the optimized
+portfolio with interactive charts.
+
