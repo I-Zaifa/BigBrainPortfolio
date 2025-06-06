@@ -7,7 +7,7 @@ LOG=/tmp/install.log
   pip install \
       numpy pandas scipy yfinance \
       matplotlib plotly seaborn \
-      "pyportfolioopt>=2.4.4,<3.0.0" \
+      "PyPortfolioOpt>=1.5.6,<2.0.0" \
       streamlit "streamlit-extras>=0.4.0" \
       pandas_datareader async-lru
   if ! pip install "cvxpy>=1.4,<2"; then
