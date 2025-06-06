@@ -4,8 +4,11 @@ from typing import List, Optional
 import numpy as np
 import pandas as pd
 import streamlit as st
-import yfinance as yf
-from pypfopt import EfficientFrontier, expected_returns, risk_models
+import asyncio
+
+from services import io
+from core import optimizer
+from ui import plots
 import plotly.express as px
 import plotly.graph_objects as go
 
@@ -13,34 +16,23 @@ warnings.filterwarnings("ignore")
 
 
 def load_tickers(path: str = "tickers.csv") -> pd.DataFrame:
-    return pd.read_csv(path)
+    try:
+        return pd.read_csv(path)
+    except FileNotFoundError:
+        return io.load_sp500()
 
 
 @st.cache_data(show_spinner=False)
 def fetch_prices(tickers: List[str]) -> pd.DataFrame:
-    data = yf.download(tickers, period="1y", interval="1d", progress=False)["Adj Close"]
-    return data.ffill().dropna(how="all")
+    return io.fetch_price_data(tickers)
 
 
 def filter_universe(df: pd.DataFrame, sectors: Optional[List[str]], esg: bool) -> pd.DataFrame:
-    if sectors:
-        df = df[df["Sector"].isin(sectors)]
-    if esg:
-        df = df[df["ESGScore"] >= 70]
-    return df
+    return io.filter_tickers(df, sectors, esg)
 
 
-def optimize(prices: pd.DataFrame, risk: str) -> EfficientFrontier:
-    mu = expected_returns.mean_historical_return(prices)
-    S = risk_models.sample_cov(prices)
-    ef = EfficientFrontier(mu, S)
-    if risk == "High":
-        ef.max_sharpe()
-    elif risk == "Medium":
-        ef.efficient_risk(0.2)
-    else:
-        ef.min_volatility()
-    return ef
+def optimize(prices: pd.DataFrame, risk: str):
+    return optimizer.optimize(prices, risk)
 
 
 def portfolio_cumulative_returns(prices: pd.DataFrame, weights: dict) -> pd.Series:
@@ -63,6 +55,13 @@ def main():
     st.title("Smart Portfolio Allocator")
 
     companies = load_tickers()
+    if "ESGScore" not in companies.columns:
+        try:
+            companies = asyncio.run(io.add_esg_scores(companies))
+        except RuntimeError:
+            companies = io._run_async(io.add_esg_scores(companies))
+        except Exception:
+            pass
     all_sectors = sorted(companies["Sector"].unique())
 
     # Sidebar inputs
@@ -104,8 +103,7 @@ def main():
         col3.metric("Sharpe Ratio", f"{sharpe:.2f}")
 
         # Allocation pie chart
-        fig_alloc = px.pie(weight_df[weight_df["Weight"] > 0], names="Ticker", values="Weight", title="Allocation")
-        st.plotly_chart(fig_alloc, use_container_width=True)
+        plots.allocation_pie(weights)
 
         # Sector exposure bar
         fig_sector = px.bar(exposure, title="Sector Exposure")
@@ -118,18 +116,9 @@ def main():
         fig_line.update_layout(title="Cumulative Returns", xaxis_title="Date", yaxis_title="Growth of $1")
         st.plotly_chart(fig_line, use_container_width=True)
 
-        # Efficient frontier (static via matplotlib converted to plotly)
+        # Efficient frontier plot
         try:
-            from pypfopt import plotting
-            import matplotlib.pyplot as plt
-            ef_points = plotting._efficient_frontier(ef, "return", None, 50)
-            ef_x = ef_points["risk"]
-            ef_y = ef_points["return"]
-            fig_frontier = go.Figure()
-            fig_frontier.add_trace(go.Scatter(x=ef_x, y=ef_y, mode="lines", name="Efficient Frontier"))
-            fig_frontier.add_trace(go.Scatter(x=[vol], y=[exp_ret], mode="markers", marker=dict(color="red", size=10), name="Your Portfolio"))
-            fig_frontier.update_layout(title="Efficient Frontier", xaxis_title="Volatility", yaxis_title="Return")
-            st.plotly_chart(fig_frontier, use_container_width=True)
+            plots.efficient_frontier_plot(ef)
         except Exception as e:
             st.warning(f"Could not generate efficient frontier: {e}")
 
