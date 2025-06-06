@@ -1,0 +1,21 @@
+Ticker,Sector,ESGScore
+AAPL,Technology,80
+MSFT,Technology,85
+GOOGL,Communication Services,75
+AMZN,Consumer Discretionary,65
+TSLA,Consumer Discretionary,55
+JNJ,Healthcare,90
+JPM,Financials,70
+XOM,Energy,45
+NVDA,Technology,70
+PFE,Healthcare,80
+PEP,Consumer Staples,88
+KO,Consumer Staples,85
+WMT,Consumer Staples,75
+DIS,Communication Services,80
+BAC,Financials,60
+ORCL,Technology,78
+CMCSA,Communication Services,60
+CSCO,Technology,72
+ADBE,Technology,83
+NKE,Consumer Discretionary,73
